@@ -17,6 +17,14 @@ import { share, type Pick } from "@/lib/agent";
 
 export const dynamic = "force-dynamic";
 
+// Every event in the catalog is in Montréal, and this page is rendered on the
+// SERVER — whose clock is UTC on Cloud Run. Without an explicit zone, a show
+// tonight at 21:00 formatted as "dimanche 13 sept. · 01 h 00": the right
+// instant, the wrong night, on the one page people open to decide where to go.
+// The zone belongs on both calls; passing it to only one produces a date and a
+// time from different days, which is worse than either error alone.
+const MONTREAL = "America/Montreal";
+
 function whenLabel(pick: Pick, locale = "fr-CA") {
   if (!pick.start_datetime) return "";
   const start = new Date(pick.start_datetime);
@@ -25,6 +33,7 @@ function whenLabel(pick: Pick, locale = "fr-CA") {
     weekday: "long",
     day: "numeric",
     month: "short",
+    timeZone: MONTREAL,
   });
   // start_time_known=false means the catalog has a date but no confirmed hour.
   // Printing "00:00" there would invent a fact the source never gave.
@@ -33,6 +42,7 @@ function whenLabel(pick: Pick, locale = "fr-CA") {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: MONTREAL,
   })}`;
 }
 
