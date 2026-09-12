@@ -9,7 +9,7 @@ on:
       backend:
         description: App Hosting backend id
         type: string
-        default: majsq
+        default: majsq-app
       branch:
         description: Branch to roll out
         type: string

@@ -1,0 +1,32 @@
+# Firebase App Hosting config for majsqweb.
+#
+# Backend: majsq-app (us-east4). Rollouts are manual — the Deploy web workflow
+# creates them. There is deliberately no automatic rollout on push: merging is
+# not shipping.
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 2
+
+env:
+  # The agent. Server-side only — no NEXT_PUBLIC_ prefix, so it never reaches
+  # the browser. Every call goes through a route handler.
+  - variable: MAJSQ_AGENT_URL
+    value: https://majsq-agent-5lzvwcc45q-nn.a.run.app
+    availability:
+      - RUNTIME
+
+  # Shared secret with the agent. The SAME Secret Manager entry the agent
+  # mounts, so the two cannot drift apart — that is the whole point of it.
+  - variable: MAJSQ_SERVICE_SECRET
+    secret: majsq-service-secret
+    availability:
+      - RUNTIME
+
+  # Public site URL, used for share links.
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: https://majsq.festro.com
+    availability:
+      - BUILD
+      - RUNTIME
