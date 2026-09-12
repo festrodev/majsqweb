@@ -1,0 +1,63 @@
+name: Deploy web
+
+# Manual only. Firebase App Hosting can auto-deploy from a branch, but that
+# turns "merged" into "live", and merging is not the same as shipping — the
+# same reason festroweb's deploys are manual.
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: App Hosting backend id
+        type: string
+        default: majsq
+      branch:
+        description: Branch to roll out
+        type: string
+        default: main
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: festro-app
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the deploy secrets exist
+        run: |
+          if [ -z "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] || [ -z "${{ secrets.GCP_CI_SERVICE_ACCOUNT }}" ]; then
+            echo "::error::Deploy secrets are not set on this repo."
+            echo "GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_CI_SERVICE_ACCOUNT are both required."
+            echo "See DEPLOY.md in the majsq repo — one-time setup, Ali only."
+            exit 1
+          fi
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_CI_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Roll out
+        # App Hosting builds from the git branch itself, so there is no image to
+        # push here — this asks Firebase to build and serve that branch's head.
+        run: |
+          npx --yes firebase-tools@13 apphosting:rollouts:create "${{ inputs.backend }}" \
+            --project "${{ env.PROJECT_ID }}" \
+            --git-branch "${{ inputs.branch }}" \
+            --force
+
+      - name: Where it went
+        run: |
+          echo "### Web rolled out" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Backend \`${{ inputs.backend }}\` from branch \`${{ inputs.branch }}\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "App Hosting builds asynchronously — watch it in the Firebase console." >> "$GITHUB_STEP_SUMMARY"
