@@ -4,15 +4,21 @@ export type Profile = { name: string; interests: Interest[]; note: string; local
 export const storageKey = "majsq.mock.profile.v1";
 export const interests: Interest[] = ["food", "events", "sports"];
 export const picks = [
-  { id: "food", name: "Le petit rendez-vous", venue: "Bistro du Plateau", time: "18:00", end: "19:00", x: 40, y: 49,
+  { id: "food", name: "Le petit rendez-vous", venue: "Bistro du Plateau", time: "18:00", end: "19:00", longitude: -73.5817, latitude: 45.5245,
     fr: "Une table, de bonnes conversations et une soirée qui commence doucement.", en: "A little table, good conversation, and an easy start to your evening.",
     address: "Avenue du Mont-Royal · Plateau", category: { fr: "À table", en: "Food & friends" } },
-  { id: "events", name: "Jazz sous les étoiles", venue: "Square Saint-Louis", time: "20:00", end: "21:00", x: 57, y: 66,
+  { id: "events", name: "Jazz sous les étoiles", venue: "Square Saint-Louis", time: "20:00", end: "21:00", longitude: -73.5694, latitude: 45.5171,
     fr: "Un concert intime en plein air. Viens pour la musique, reste pour les rencontres.", en: "An intimate outdoor set. Come for the music, stay for the conversation.",
     address: "Rue Saint-Denis · Le Plateau", category: { fr: "Musique & rencontres", en: "Music & meetups" } },
-  { id: "sports", name: "Un match au parc", venue: "Parc La Fontaine", time: "16:00", end: "17:00", x: 64, y: 35,
+  { id: "sports", name: "Un match au parc", venue: "Parc La Fontaine", time: "16:00", end: "17:00", longitude: -73.5698, latitude: 45.5274,
     fr: "Un match amical, tous niveaux. Juste une bonne raison de sortir jouer.", en: "A friendly pickup game for every level. A good reason to get outside.",
     address: "Avenue du Parc-La Fontaine", category: { fr: "On bouge", en: "Get moving" } },
+] as const;
+// ponytail: fixed demo calendar; a real one comes from the user's calendar provider.
+export const calendar = [
+  { id: "coffee", name: { fr: "Café avec Sam", en: "Coffee with Sam" }, time: "15:00", end: "15:45" },
+  { id: "call", name: { fr: "Appel avec maman", en: "Call with Mom" }, time: "17:15", end: "17:45" },
+  { id: "walk", name: { fr: "Balade au canal", en: "Canal walk" }, time: "21:30", end: "22:30" },
 ] as const;
 
 export function readProfile(raw: string | null): Profile | null {
