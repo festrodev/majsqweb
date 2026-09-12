@@ -1266,3 +1266,24 @@
 /* MapLibre moves markers with transform; the global button transition made them trail the map. */
 .mock-app .real-marker { transition: background .2s, color .2s, box-shadow .2s; }
 .map-attribution { background: transparent; color: var(--muted); font-size: 10px; padding: 2px 6px; }
+
+/* V5: the calendar labels itself, fills its panel, and offers picks in the free slots. */
+.calendar-agenda>.section-label { flex-shrink: 0; margin-inline: 0; }
+.calendar-grid { flex: 1; height: auto; min-height: calc(var(--hours) * 40px); }
+.calendar-hour, .calendar-event, .calendar-now { top: calc(var(--at) / var(--span) * 100%); }
+.calendar-event { height: calc(var(--len) / var(--span) * 100% - 3px); }
+.calendar-event.suggested { border: 1px dashed color-mix(in srgb,var(--accent) 55%,transparent); background: transparent; backdrop-filter: none; color: var(--muted); }
+.calendar-event.suggested button { color: var(--accent); font-size: 16px; }
+
+/* V6: compact interest chips so the interests step fits one screen. */
+.mock-app .interest { flex-direction: row; align-items: center; gap: 10px; min-height: 0; padding: 14px; }
+.mock-app .interest>svg { margin: 0; flex-shrink: 0; }
+.onboarding-content { padding: 32px 0; }
+.onboarding-content h1 { font-size: clamp(36px,3.6vw,52px); }
+.onboarding-content>div>p, .onboarding-content form>p { margin-bottom: 24px; }
+.onboarding-content textarea { min-height: 56px; }
+@media(max-width:760px) {
+  .interest-grid { grid-template-columns: 1fr; }
+  .onboarding-content { padding: 24px 0; }
+  .onboarding-content h1 { font-size: 36px; }
+}
