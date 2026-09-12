@@ -8,6 +8,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // allow-hex: the browser paints its chrome from this before any stylesheet
+  // has loaded, so it cannot be a CSS variable. Keep in step with
+  // --majsq-night in globals.css.
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0e1116" },
     { media: "(prefers-color-scheme: light)", color: "#f4f5f7" },

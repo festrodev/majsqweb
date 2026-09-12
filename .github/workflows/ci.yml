@@ -46,10 +46,31 @@ jobs:
         # DESIGN.md's one mechanical rule: components use tokens, never hex.
         # Two people share this repo; without a check, the first hurried hex
         # value is invisible until the themes disagree.
+        #
+        # A line may opt out with an `allow-hex:` comment ABOVE it, and the
+        # comment has to say why — the two real cases so far are browser-chrome
+        # metadata the browser reads before any stylesheet exists. An opt-out
+        # you have to justify in writing is one people use sparingly.
         run: |
-          if grep -rnE '#[0-9a-fA-F]{3,8}\b' src/components src/app --include='*.tsx' \
-             | grep -v 'globals.css' ; then
-            echo "::error::Hard-coded color found. Use a token from globals.css — see DESIGN.md."
+          hits=$(grep -rnE '#[0-9a-fA-F]{3,8}\b' src --include='*.tsx' || true)
+          bad=""
+          while IFS= read -r hit; do
+            [ -z "$hit" ] && continue
+            file=${hit%%:*}
+            rest=${hit#*:}
+            line=${rest%%:*}
+            # Look at the six lines above for the marker, so a block comment
+            # covers the whole declaration it introduces.
+            start=$(( line > 6 ? line - 6 : 1 ))
+            if sed -n "${start},${line}p" "$file" | grep -q 'allow-hex:'; then
+              continue
+            fi
+            bad="$bad$hit"$'\n'
+          done <<< "$hits"
+
+          if [ -n "$bad" ]; then
+            echo "$bad"
+            echo "::error::Hard-coded color. Use a token from globals.css (see DESIGN.md), or add an 'allow-hex: <why>' comment above it."
             exit 1
           fi
-          echo "  no hex values in components"
+          echo "  no unjustified hex values"
