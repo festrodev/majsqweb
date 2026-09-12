@@ -57,7 +57,8 @@ export default function MockExperience() {
   useEffect(() => {
     try {
       const saved = readProfile(localStorage.getItem(storageKey));
-      if (saved) { setProfile(saved); setLocale(saved.locale); setSelected(saved.interests[0]); }
+      if (saved) { setProfile(saved); setLocale(saved.locale); setSelected(saved.interests[0] ?? "food"); }
+      else setLocale(navigator.language.toLowerCase().startsWith("fr") ? "fr" : "en");
     } catch { /* Storage is optional; the demo remains usable in memory. */ }
     setReady(true);
   }, []);
@@ -67,9 +68,9 @@ export default function MockExperience() {
 
   function finish() {
     const p: Profile = { name: name.trim(), interests: chosen, note: note.trim(), locale };
-    if (!p.name || !p.interests.length) return;
+    if (!p.name || !(p.interests.length || p.note)) return;
     try { localStorage.setItem(storageKey, JSON.stringify(p)); } catch { setNotice(t("La sauvegarde locale est indisponible. Cette session reste utilisable.", "Local storage is unavailable. You can still use this session.")); }
-    setProfile(p); setSelected(chosen[0]);
+    setProfile(p); setSelected(chosen[0] ?? "food");
   }
   function reset() {
     try { localStorage.removeItem(storageKey); } catch { /* Reset the in-memory session too. */ }
@@ -82,6 +83,11 @@ export default function MockExperience() {
     setMessages(prev => [...prev, { role: "user", text: value }, { role: "assistant", text: reply.text }]);
     if (reply.id) setSelected(reply.id);
     setDraft("");
+  }
+  function add(id: string) {
+    const p = picks.find(p => p.id === id) ?? picks[0];
+    setAgenda(prev => prev.includes(id) ? prev : [...prev, id]);
+    setNotice(t(`${p.name} ajouté à ton agenda.`, `${p.name} added to your agenda.`));
   }
   const pick = picks.find(p => p.id === selected) ?? picks[0];
   const ordered = [...picks].sort((a, b) => Number(profile?.interests.includes(b.id)) - Number(profile?.interests.includes(a.id)));
@@ -103,12 +109,12 @@ export default function MockExperience() {
           <label className="input-label" htmlFor="name">{t("TON PRÉNOM", "YOUR FIRST NAME")}</label>
           <input id="name" className="name-input" placeholder={t("On t’appelle comment ?", "What should we call you?")} autoComplete="given-name" maxLength={40} required value={name} onChange={e => setName(e.target.value)}/>
           <button className="primary" disabled={!name.trim()}>{t("On fait connaissance", "Let’s get acquainted")}<Icon name="arrow"/></button>
-        </form> : step === 1 ? <form onSubmit={e => { e.preventDefault(); if (chosen.length) setStep(2); }}>
+        </form> : step === 1 ? <form onSubmit={e => { e.preventDefault(); if (chosen.length || note.trim()) setStep(2); }}>
           <h1 ref={title} tabIndex={-1}>{t("Alors", "So")}, {name.trim()}.<br/><span>{t("On sort pour quoi ?", "What’s your kind of night?")}</span></h1>
           <p>{t("Choisis ce qui te ressemble. Une envie, ou les trois.", "Pick what feels like you. One interest, or all three.")}</p>
-          <fieldset className="interest-grid"><legend className="sr-only">{t("Tes intérêts", "Your interests")}</legend>{interests.map((id, i) => <label className={`interest ${chosen.includes(id) ? "active" : ""}`} key={id}><input type="checkbox" checked={chosen.includes(id)} onChange={() => setChosen(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])}/><Icon name={id}/><span>{[t("Restaurants", "Restaurants"), t("Événements & rencontres", "Events & meetups"), t("Événements sportifs", "Sports events")][i]}</span><small>{[t("Une bonne table", "A table worth sharing"), t("De belles découvertes", "A little serendipity"), t("Dehors, ensemble", "Outside, together")][i]}</small></label>)}</fieldset>
-          <label className="input-label" htmlFor="note">{t("AUTRE CHOSE EN TÊTE ? (FACULTATIF)", "ANYTHING ELSE ON YOUR MIND? (OPTIONAL)")}</label><textarea id="note" rows={2} maxLength={300} placeholder={t("Un quartier, une envie, un sujet de conversation…", "A neighbourhood, a mood, something to talk about…")} value={note} onChange={e => setNote(e.target.value)}/>
-          <div className="step-actions"><button className="text-button" type="button" onClick={() => setStep(0)}>← {t("Retour", "Back")}</button><button className="primary" disabled={!chosen.length}>{t("Ça me ressemble", "That sounds like me")}<Icon name="arrow"/></button></div>
+          <fieldset className="interest-grid"><legend className="sr-only">{t("Tes intérêts", "Your interests")}</legend>{interests.map((id, i) => <label className={`interest ${chosen.includes(id) ? "active" : ""}`} key={id}><input type="checkbox" checked={chosen.includes(id)} onChange={() => setChosen(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])}/><Icon name={id}/><span>{[t("Restaurants", "Restaurants"), t("Événements & rencontres", "Events & meetups"), t("Événements sportifs", "Sports events")][i]}</span></label>)}</fieldset>
+          <label className="input-label" htmlFor="note">{t("OU DIS-LE AVEC TES MOTS", "OR SAY IT IN YOUR OWN WORDS")}</label><textarea id="note" rows={2} maxLength={300} placeholder={t("Un quartier, une envie, un sujet de conversation…", "A neighbourhood, a mood, something to talk about…")} value={note} onChange={e => setNote(e.target.value)}/>
+          <div className="step-actions"><button className="text-button" type="button" onClick={() => setStep(0)}>← {t("Retour", "Back")}</button><button className="primary" disabled={!chosen.length && !note.trim()}>{t("Ça me ressemble", "That sounds like me")}<Icon name="arrow"/></button></div>
         </form> : <div>
           <h1 ref={title} tabIndex={-1}>{t("Ta prochaine", "Your next")}<br/><span>{t("belle soirée t’attend.", "good night starts here.")}</span></h1><p>{t("Tes envies, tes idées, ton petit coin de Montréal.", "Your interests, your plans, your little corner of Montréal.")}<br/>{t("Connecte-toi pour retrouver tout ça.", "Sign in to make yourself at home.")}</p>
           <div className="login-card"><span className="login-avatar">{name.trim().slice(0, 1).toUpperCase()}</span><div><strong>{name.trim()}</strong><small>{t("Ton profil de démonstration", "Your demo profile")}</small></div><span className="check">✓</span></div>
@@ -127,8 +133,8 @@ export default function MockExperience() {
           <span className="pick-summary">{p[locale]}</span>
           <span className="pick-row pick-match">{profile.interests.includes(p.id) ? t("Selon tes envies", "Matches your interests") : t("À découvrir", "Something to discover")}<Icon name="pin"/></span>
         </button>)}</section>
-        <section className="map-stage" aria-label={t("Détails du lieu", "Place details")}><div className="map-detail" aria-live="polite"><div className="eyebrow">{pick.category[locale]} · {pick.time}</div><h2>{pick.name}</h2><p><Icon name="pin"/>{pick.address}</p><button className="primary" disabled={agenda.includes(pick.id)} onClick={() => { setAgenda(prev => prev.includes(pick.id) ? prev : [...prev, pick.id]); setNotice(t(`${pick.name} ajouté à ton agenda.`, `${pick.name} added to your agenda.`)); }}><Icon name="calendar"/>{agenda.includes(pick.id) ? t("Ajouté à l’agenda ✓", "Added to agenda ✓") : t("Ajouter au calendrier", "Add to calendar")}</button></div><div className="map-caption">{t("MONTRÉAL · LIEUX DE DÉMONSTRATION", "MONTRÉAL · DEMO LOCATIONS")}</div></section>
-        <Agenda ids={agenda} locale={locale} remove={id => setAgenda(prev => prev.filter(value => value !== id))}/>
+        <section className="map-stage" aria-label={t("Détails du lieu", "Place details")}><div className="map-detail" aria-live="polite"><div className="eyebrow">{pick.category[locale]} · {pick.time}</div><h2>{pick.name}</h2><p><Icon name="pin"/>{pick.address}</p><button className="primary" disabled={agenda.includes(pick.id)} onClick={() => add(pick.id)}><Icon name="calendar"/>{agenda.includes(pick.id) ? t("Ajouté à l’agenda ✓", "Added to agenda ✓") : t("Ajouter au calendrier", "Add to calendar")}</button></div><div className="map-caption">{t("MONTRÉAL · LIEUX DE DÉMONSTRATION", "MONTRÉAL · DEMO LOCATIONS")}</div></section>
+        <Agenda ids={agenda} locale={locale} add={add} remove={id => setAgenda(prev => prev.filter(value => value !== id))}/>
         <section className="chat panel" aria-label={t("Assistant de démonstration", "Demo assistant")}><div className="panel-heading"><span className="assistant-icon"><Icon/></span><div><h2>maj$q</h2><small>{t("Ton complice de sortie", "Your going-out companion")}</small></div><span className="chat-status" title={t("Démo locale", "Local demo")}/></div><div className="chat-messages" ref={conversation} role="log" aria-label={t("Conversation", "Conversation")} aria-live="polite"><div className="chat-date">{t("LE DÉBUT D’UNE BELLE SOIRÉE", "THE START OF A GOOD EVENING")}</div><div className="message assistant"><span className="message-label">maj$q</span><p>{t(`Salut ${profile.name}. J’ai trois idées pour toi, juste ici à Montréal.`, `Hey ${profile.name}. I’ve found three ideas for you, right here in Montréal.`)}</p><p>{t("On construit ta soirée ensemble ?", "Want to put an evening together?")}</p></div>{profile.note && <div className="message user"><span className="message-label">{t("TES ENVIES", "ON YOUR MIND")}</span><p>{profile.note}</p></div>}{messages.map((m, i) => <div key={i} className={`message ${m.role}`}><span className="message-label">{m.role === "user" ? profile.name : "maj$q"}</span><p>{m.text}</p></div>)}</div><div className="chat-bottom"><div className="suggestions">{[t("Un bon resto ?", "Somewhere to eat?"), t("Du jazz ce soir", "Live music tonight"), t("Un peu de sport", "A little sport")].map(s => <button key={s} onClick={() => send(s)}>{s} ↗</button>)}</div><form className="chat-input" onSubmit={e => { e.preventDefault(); send(draft); }}><label className="sr-only" htmlFor="message">{t("Ton message", "Your message")}</label><input id="message" maxLength={1000} value={draft} onChange={e => setDraft(e.target.value)} placeholder={t("Une envie ? Dis-moi…", "What are you in the mood for?")}/><button disabled={!draft.trim()} aria-label={t("Envoyer", "Send")}><Icon name="arrow"/></button></form></div></section>
       </div>
     </>}

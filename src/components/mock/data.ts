@@ -25,8 +25,8 @@ export function readProfile(raw: string | null): Profile | null {
   try {
     const p = JSON.parse(raw ?? "null");
     if (!p || typeof p.name !== "string" || !p.name.trim() || p.name.length > 40 ||
-      !Array.isArray(p.interests) || !p.interests.length || !p.interests.every((i: Interest) => interests.includes(i)) ||
-      typeof p.note !== "string" || p.note.length > 300 || !["fr", "en"].includes(p.locale)) return null;
+      !Array.isArray(p.interests) || !p.interests.every((i: Interest) => interests.includes(i)) ||
+      typeof p.note !== "string" || p.note.length > 300 || !(p.interests.length || p.note.trim()) || !["fr", "en"].includes(p.locale)) return null;
     return p;
   } catch { return null; }
 }
