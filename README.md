@@ -16,6 +16,17 @@ AI Tinkerers "Agents, Everywhere" hackathon, Montréal, 12 September 2026.
 | **`majsqweb`** | This. Next.js 16 + CopilotKit. |
 | [`majsqbot`](https://github.com/festrodev/majsqbot) | The Telegram surface. |
 
+## Read first
+
+This repo follows the shared docs in `majsq`:
+[`DESIGN.md`](https://github.com/festrodev/majsq/blob/main/docs/DESIGN.md)
+(tokens, strings, the five components) ·
+[`CONTRACT.md`](https://github.com/festrodev/majsq/blob/main/docs/CONTRACT.md)
+(the API) ·
+[`TEAM.md`](https://github.com/festrodev/majsq/blob/main/docs/TEAM.md).
+The ready-to-paste session prompt for this repo is
+[`docs/prompts/web.md`](https://github.com/festrodev/majsq/blob/main/docs/prompts/web.md).
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · Tailwind v4 · CopilotKit 1.71 ·
