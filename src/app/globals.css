@@ -1,26 +1,164 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   maj$q design tokens
+   ----------------------------------------------------------------------------
+   This file is the design system. It is owned by the design lead — change a
+   value here and the whole product changes with it. Components consume these
+   tokens through Tailwind utilities (bg-surface, text-ink, rounded-card …) and
+   should not hard-code a single hex value anywhere.
+
+   Dark-first on purpose: the product is about going out at night, and the
+   primary context is a phone in a group chat at 21:00. Light exists, is
+   tested, and is not the design's centre of gravity.
+
+   The canonical spec lives at:
+   https://github.com/festrodev/majsq/blob/main/docs/DESIGN.md
+   ========================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* -- ground ------------------------------------------------------------ */
+  --majsq-night: #0e1116; /* page background */
+  --majsq-surface: #171c23; /* cards, sheets, the chat bubble */
+  --majsq-surface-2: #1f2630; /* hover, nested, unselected chip */
+  --majsq-line: #2a323d; /* borders, dividers */
+
+  /* -- text -------------------------------------------------------------- */
+  --majsq-ink: #eef1f5;
+  --majsq-ink-2: #a3adba; /* metadata, secondary */
+  --majsq-ink-3: #6b7684; /* placeholders, disabled */
+
+  /* -- accent: exactly one ------------------------------------------------
+     "Lampadaire" — a Montréal street lamp at night. Used for the primary
+     button, the selected chip, the map marker, the poll winner. Nothing else.
+     If you find yourself wanting a second accent, use a neutral instead. */
+  --majsq-lamp: #f2a93b;
+  --majsq-lamp-ink: #1a1200; /* text on top of lamp */
+
+  /* -- semantic: state, never decoration --------------------------------- */
+  --majsq-ok: #3ccb7f;
+  --majsq-warn: #ff7a52;
+  --majsq-error: #f04e5b;
+  --majsq-link: #7fd6d6;
+
+  /* -- shape ------------------------------------------------------------- */
+  --majsq-r-card: 12px;
+  --majsq-r-chip: 999px;
+  --majsq-r-input: 8px;
+
+  /* -- type -------------------------------------------------------------- */
+  --majsq-font-display: "Bricolage Grotesque", "Source Sans 3", system-ui, sans-serif;
+  --majsq-font-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --majsq-font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* The viewer chose light, or their OS is light and they chose nothing.
+   Every token above is redefined here — none may exist in only one block. */
+:root[data-theme="light"] {
+  --majsq-night: #f4f5f7;
+  --majsq-surface: #ffffff;
+  --majsq-surface-2: #edf0f4;
+  --majsq-line: #d6dbe3;
+  --majsq-ink: #151a21;
+  --majsq-ink-2: #4a5464;
+  --majsq-ink-3: #8a94a3;
+  --majsq-lamp: #d98f1f;
+  --majsq-lamp-ink: #ffffff;
+  --majsq-link: #0b6d6f;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --majsq-night: #f4f5f7;
+    --majsq-surface: #ffffff;
+    --majsq-surface-2: #edf0f4;
+    --majsq-line: #d6dbe3;
+    --majsq-ink: #151a21;
+    --majsq-ink-2: #4a5464;
+    --majsq-ink-3: #8a94a3;
+    --majsq-lamp: #d98f1f;
+    --majsq-lamp-ink: #ffffff;
+    --majsq-link: #0b6d6f;
   }
 }
 
+/* Expose the tokens to Tailwind so components write `bg-surface text-ink`
+   rather than arbitrary values. Add a token here the moment you add one above. */
+@theme inline {
+  --color-night: var(--majsq-night);
+  --color-surface: var(--majsq-surface);
+  --color-surface-2: var(--majsq-surface-2);
+  --color-line: var(--majsq-line);
+  --color-ink: var(--majsq-ink);
+  --color-ink-2: var(--majsq-ink-2);
+  --color-ink-3: var(--majsq-ink-3);
+  --color-lamp: var(--majsq-lamp);
+  --color-lamp-ink: var(--majsq-lamp-ink);
+  --color-ok: var(--majsq-ok);
+  --color-warn: var(--majsq-warn);
+  --color-error: var(--majsq-error);
+  --color-link: var(--majsq-link);
+
+  --font-display: var(--majsq-font-display);
+  --font-body: var(--majsq-font-body);
+  --font-mono: var(--majsq-font-mono);
+
+  --radius-card: var(--majsq-r-card);
+  --radius-chip: var(--majsq-r-chip);
+  --radius-input: var(--majsq-r-input);
+}
+
+/* ---------------------------------------------------------------- base --- */
+
+html {
+  color-scheme: dark light;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Explicit, from a token. A transparent body borrows whatever ground the
+     host paints and the theme silently breaks. */
+  background: var(--majsq-night);
+  color: var(--majsq-ink);
+  font-family: var(--majsq-font-body);
+  font-size: 17px;
+  line-height: 1.55;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--majsq-font-display);
+  text-wrap: balance;
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* Every interactive thing gets a visible focus ring. Non-negotiable. */
+:focus-visible {
+  outline: 2px solid var(--majsq-lamp);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Digits that line up in columns — times, counts, prices. */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
