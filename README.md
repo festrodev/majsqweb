@@ -67,3 +67,25 @@ registers the agent as a remote AG-UI agent. The model key stays on the server
 there too.
 
 MIT licensed.
+
+## UI/UX prototype
+
+Open `http://localhost:3000/?mock` after `npm run dev` (use the port printed
+by Next.js if 3000 is occupied). This mode needs no agent, account, or API key.
+The original root page remains available without the `mock` query parameter.
+
+The three onboarding screens collect a name, interests, and an optional note.
+“Connect Festro” and the guest button both simulate sign-in. The profile is
+saved in browser local storage; **Reset demo** clears it and restarts onboarding.
+Agenda changes and chat messages last for the current page session only.
+
+The dashboard uses a local, illustrative Montréal map and three fictional
+activities on September 12, 2026. Select a card or pin to inspect it, add it to
+the agenda, or use the chat suggestions for scripted replies. French is the
+default; the header switches language and theme. On phones, use the Map, Picks,
+Agenda, and Chat tabs. Motion respects reduced-motion preferences.
+
+Checks: `npm run lint`, `npx tsc --noEmit`, and
+`node --experimental-strip-types tests/mock.test.mjs` (Node 22.6+).
+Production build: `npm run build`; `npm run build -- --webpack` is an alternate
+for environments that restrict Turbopack's internal port binding. The shared font stylesheet falls back to system fonts when offline.
