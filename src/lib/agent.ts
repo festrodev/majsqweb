@@ -112,6 +112,22 @@ export function categories(opts: { locale?: string; counts?: boolean; timeSlot?:
   );
 }
 
+/** Finish a Festro connect. The agent exchanges the code with maj$q's own client secret. */
+export function link(args: { sessionId: string; code: string; codeVerifier: string; redirectUri: string }) {
+  return call<{ connected: boolean; display_name: string }>("/api/link/", {
+    method: "POST",
+    body: JSON.stringify({
+      channel: "web",
+      kind: "web",
+      conversation_id: args.sessionId,
+      participant_id: args.sessionId,
+      code: args.code,
+      code_verifier: args.codeVerifier,
+      redirect_uri: args.redirectUri,
+    }),
+  });
+}
+
 /** The public map-share payload. No secret required — the id is the credential. */
 export function share(shareId: string) {
   return call<{ share_id: string; time_slot: string; category: string; picks: Pick[]; created_at: string }>(

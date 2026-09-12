@@ -40,6 +40,8 @@ AG-UI client · MapLibre GL.
 | `/chat` | The conversation. Chips for the window and category, clarifying questions as human-in-the-loop actions, three pick cards rendered as generative UI. |
 | `/m/[share_id]` | The map behind a share link. Public event fields only. |
 | `/settings` | Connections and notifications. |
+| `/connect` | Starts the Festro connect handshake (PKCE) and redirects to Festro. |
+| `/connect/callback` | Verifies `state`, has the agent link the account, shows who is connected. |
 
 ## Run it
 
@@ -86,7 +88,8 @@ default; the header switches language and theme. On phones, use the Map, Picks,
 Agenda, and Chat tabs. Motion respects reduced-motion preferences.
 
 Checks: `npm run lint`, `npx tsc --noEmit`, and
-`node --experimental-strip-types tests/mock.test.mjs` (Node 22.6+).
+`node --experimental-strip-types tests/mock.test.mjs` (Node 22.6+), and
+`node --conditions=react-server tests/connect.test.mjs` for the connect handshake.
 Production build: `npm run build`; `npm run build -- --webpack` is an alternate
 for environments that restrict Turbopack's internal port binding. The shared font stylesheet falls back to system fonts when offline.
 
