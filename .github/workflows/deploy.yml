@@ -3,6 +3,23 @@ name: Deploy web
 # Manual only. Firebase App Hosting can auto-deploy from a branch, but that
 # turns "merged" into "live", and merging is not the same as shipping — the
 # same reason festroweb's deploys are manual.
+#
+# Drives the App Hosting REST API directly rather than
+# `firebase apphosting:rollouts:create`, for two reasons found running this
+# exact command in this exact project:
+#   1. The WIF credential google-github-actions/auth@v3 produces is an
+#      external_account JSON. firebase-tools' own credential loader does not
+#      reliably exchange it, and fails with "Unable to refresh auth: not yet
+#      authenticated" even though the token is valid — `token_format:
+#      access_token` sidesteps this by having the auth action itself do the
+#      STS exchange and hand over a plain OAuth token.
+#   2. The CLI auto-names builds `build-<UTC-date>-NNN` (list-then-increment)
+#      and intermittently 409s ("Resource already exists") after the build
+#      was already created, leaving a READY-but-unpromoted build and a failed
+#      run. It exposes no flag for an explicit id and cannot promote an
+#      existing build. See festrodev/festroweb's deploy-apphosting.yml, which
+#      hit this first — this workflow is that fix, adapted to majsqweb's
+#      single backend.
 on:
   workflow_dispatch:
     inputs:
@@ -11,7 +28,7 @@ on:
         type: string
         default: majsq-app
       branch:
-        description: Branch to roll out
+        description: Branch to roll out (informational — the build pins to HEAD's commit)
         type: string
         default: main
 
@@ -20,11 +37,14 @@ permissions:
   id-token: write
 
 env:
-  PROJECT_ID: festro-app
+  PROJECT: festro-app
+  LOCATION: us-east4
+  API_VERSION: v1beta
 
 jobs:
   rollout:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -37,27 +57,118 @@ jobs:
             exit 1
           fi
 
-      - uses: google-github-actions/auth@v3
+      # token_format: access_token performs the STS exchange here, in the
+      # action, and hands back a plain OAuth bearer token — no gcloud, no
+      # firebase-tools, nothing downstream needs to understand WIF at all.
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_CI_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Roll out
-        # App Hosting builds from the git branch itself, so there is no image to
-        # push here — this asks Firebase to build and serve that branch's head.
+      - name: Build and roll out
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+          BACKEND: ${{ inputs.backend }}
+          COMMIT: ${{ github.sha }}
         run: |
-          npx --yes firebase-tools@13 apphosting:rollouts:create "${{ inputs.backend }}" \
-            --project "${{ env.PROJECT_ID }}" \
-            --git-branch "${{ inputs.branch }}" \
-            --force
+          set -euo pipefail
 
-      - name: Where it went
-        run: |
+          API="https://firebaseapphosting.googleapis.com/${API_VERSION}"
+          BASE="${API}/projects/${PROJECT}/locations/${LOCATION}/backends/${BACKEND}"
+          # Globally-unique id: short SHA + run id + attempt. Lowercase
+          # alphanumerics/hyphens, starts with a letter (RFC1035-safe), and
+          # never collides with the CLI's date-counter ids or across re-runs.
+          ID="build-${COMMIT:0:7}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          BUILD_NAME="projects/${PROJECT}/locations/${LOCATION}/backends/${BACKEND}/builds/${ID}"
+
+          echo "Backend : ${BACKEND}"
+          echo "Commit  : ${COMMIT}"
+          echo "Build id: ${ID}"
+
+          api_post() {
+            local url="$1" body="$2" out code
+            out="$(curl -sS -w '\n%{http_code}' -X POST \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Content-Type: application/json" \
+              "$url" -d "$body")"
+            code="$(printf '%s' "$out" | tail -n1)"
+            body="$(printf '%s' "$out" | sed '$d')"
+            if [ "$code" -ge 400 ]; then
+              echo "POST $url -> HTTP $code" >&2
+              echo "$body" >&2
+              return 1
+            fi
+            printf '%s' "$body"
+          }
+
+          api_get() {
+            curl -fsS -H "Authorization: Bearer ${TOKEN}" "$1"
+          }
+
+          poll_operation() {
+            local op="$1" i resp
+            for i in $(seq 1 150); do   # 150 * 10s = 25 min ceiling
+              resp="$(api_get "${API}/${op}")"
+              if [ "$(printf '%s' "$resp" | jq -r '.done // false')" = "true" ]; then
+                if [ "$(printf '%s' "$resp" | jq 'has("error")')" = "true" ]; then
+                  echo "Operation ${op} failed:" >&2
+                  printf '%s' "$resp" | jq '.error' >&2
+                  return 1
+                fi
+                printf '%s' "$resp" | jq '.response // {}'
+                return 0
+              fi
+              sleep 10
+            done
+            echo "Timed out waiting for operation ${op}" >&2
+            return 1
+          }
+
+          echo "::group::Create build"
+          BUILD_OP="$(api_post "${BASE}/builds?buildId=${ID}" \
+            "{\"source\":{\"codebase\":{\"commit\":\"${COMMIT}\"}}}" | jq -r '.name')"
+          echo "Build operation: ${BUILD_OP}"
+          BUILD="$(poll_operation "${BUILD_OP}")"
+          STATE="$(printf '%s' "$BUILD" | jq -r '.state // "UNKNOWN"')"
+          echo "Build state: ${STATE}"
+          if [ "$STATE" != "READY" ]; then
+            echo "Build did not reach READY. Logs: $(printf '%s' "$BUILD" | jq -r '.buildLogsUri // "n/a"')" >&2
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Create rollout"
+          ROLLOUT_OP=""
+          for i in 1 2 3 4 5; do
+            if ROLLOUT_OP="$(api_post "${BASE}/rollouts?rolloutId=${ID}" \
+                "{\"build\":\"${BUILD_NAME}\"}" | jq -r '.name')"; then
+              break
+            fi
+            echo "rollout POST attempt ${i} failed; retrying in 5s" >&2
+            ROLLOUT_OP=""
+            sleep 5
+          done
+          if [ -z "$ROLLOUT_OP" ]; then
+            echo "Failed to create rollout after retries" >&2
+            exit 1
+          fi
+          echo "Rollout operation: ${ROLLOUT_OP}"
+          ROLLOUT="$(poll_operation "${ROLLOUT_OP}")"
+          RSTATE="$(printf '%s' "$ROLLOUT" | jq -r '.state // "UNKNOWN"')"
+          echo "Rollout state: ${RSTATE}"
+          case "$RSTATE" in
+            FAILED|CANCELLED)
+              echo "Rollout did not succeed (state=${RSTATE})" >&2
+              exit 1
+              ;;
+          esac
+          echo "::endgroup::"
+
           echo "### Web rolled out" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Backend \`${{ inputs.backend }}\` from branch \`${{ inputs.branch }}\`." >> "$GITHUB_STEP_SUMMARY"
-          echo "App Hosting builds asynchronously — watch it in the Firebase console." >> "$GITHUB_STEP_SUMMARY"
+          echo "Backend \`${BACKEND}\`, commit \`${COMMIT:0:7}\` (build/rollout id \`${ID}\`)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Rolled out ${COMMIT:0:7} to ${BACKEND}"
